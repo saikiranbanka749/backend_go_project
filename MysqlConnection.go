@@ -19,7 +19,7 @@ type Student struct {
 }
 
 var students []Student
-var student Student
+
 var db *sql.DB
 
 func init() {
@@ -35,7 +35,6 @@ func init() {
 	}
 	fmt.Println("Pinging to MySQL is successful")
 }
-
 func main() {
 	http.HandleFunc("/users", getUSerHandler)
 	http.HandleFunc("/users/", getUserByIDHandler)
@@ -44,15 +43,14 @@ func main() {
 		fmt.Println("ListenAndServe:", err)
 	}
 }
-
 func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "*")
 }
-
 func getUSerHandler(w http.ResponseWriter, r *http.Request) {
 	enableCors(&w)
 	w.Header().Set("Content-Type", "application/json")
-
 	rows, err := db.Query("SELECT * FROM Users")
 	if err != nil {
 		fmt.Println("Error querying to fetch data", err)
@@ -60,7 +58,6 @@ func getUSerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-
 	for rows.Next() {
 		var student Student
 		err := rows.Scan(&student.ID, &student.Name, &student.Email, &student.ContactNumber)
@@ -70,7 +67,6 @@ func getUSerHandler(w http.ResponseWriter, r *http.Request) {
 		students = append(students, student)
 	}
 	defer rows.Close()
-
 	jsonBytes, err := json.Marshal(students)
 	if err != nil {
 		fmt.Println("Error in marshalling to JSON", err)
@@ -80,11 +76,11 @@ func getUSerHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonBytes)
 	students = nil
 }
-
 func createUser(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	var student Student
 	w.Header().Set("Content-Type", "application/json")
-	err := json.NewDecoder(r.Body).Decode(&student)
+	// err := json.NewDecoder(r.Body).Decode(&student)
 	stmt, err := db.Prepare("insert into Users(id,name, email, contact_number) values(?,?,?,?)")
 	if err != nil {
 		fmt.Println("error in executing query", err)
@@ -107,8 +103,8 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func getUserByIDHandler(w http.ResponseWriter, r *http.Request) {
+	enableCors(&w)
 	w.Header().Set("Content-Type", "application/json")
-
 	// Parse ID from URL parameter
 	id := r.URL.Path[len("/users/"):]
 	studentID, err := strconv.Atoi(id)
@@ -116,10 +112,8 @@ func getUserByIDHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return
 	}
-
 	// Query the database for the student with the provided ID
 	row := db.QueryRow("SELECT * FROM Users WHERE id=?", studentID)
-
 	var student Student
 	err = row.Scan(&student.ID, &student.Name, &student.Email, &student.ContactNumber)
 	if err == sql.ErrNoRows {
@@ -129,13 +123,11 @@ func getUserByIDHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	// Marshal student data to JSON
 	jsonBytes, err := json.Marshal(student)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
 	w.Write(jsonBytes)
 }
